@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from ..utils import sample_on_sphere, look_at, to_sphere
 from ..transforms import FullRaySampler
-from submodules.nerf_pytorch.run_nerf_mod import render, run_network            # import conditional render
+from submodules.nerf_pytorch.run_nerf_mod import render, run_network, render_sigma           # import conditional render
 from functools import partial
 
 
@@ -81,6 +81,24 @@ class Generator(object):
 
         rgb = rays_to_output(rgb)
         return rgb
+
+    def out_sigma(self, z, y=None, points=None):
+        bs = z.shape[0]
+
+        render_kwargs = self.render_kwargs_test if self.use_test_kwargs else self.render_kwargs_train
+        render_kwargs = dict(render_kwargs)  # copy
+
+        # in the case of a variable radius
+        # we need to adjust near and far plane for the rays
+        # so they stay within the bounds defined wrt. maximal radius
+        # otherwise each camera samples within its own near/far plane (relative to this camera's radius)
+        # instead of the absolute value (relative to maximum camera radius)
+
+        render_kwargs['features'] = z
+        sigmas = render_sigma(self.H, self.W, self.focal, chunk=self.chunk, points=points,
+                                        **render_kwargs)
+
+        return sigmas
 
     def decrease_nerf_noise(self, it):
         end_it = 5000

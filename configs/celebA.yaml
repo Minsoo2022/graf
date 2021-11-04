@@ -1,6 +1,8 @@
 expname: celebA_64
 data:
-  datadir: /PATH/TO/CELEBA/Img/img_align_celebA
+  # datadir: /PATH/TO/CELEBA/Img/img_align_celebA
+  datadir: /home/nas1_temp/minsoolee/3Dmining/dataset/celeba_cropped_no_split$
+  # datadir: /home/nas1_temp/minsoolee/3Dmining/dataset/img_align_celeba
   type: celebA
   imsize: 64
   white_bkgd: False

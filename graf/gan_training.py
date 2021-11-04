@@ -8,6 +8,7 @@ from submodules.GAN_stability.gan_training.eval import Evaluator as EvaluatorBas
 from submodules.GAN_stability.gan_training.metrics import FIDEvaluator, KIDEvaluator
 
 from .utils import save_video, color_depth_map
+import mrcfile
 
 
 class Trainer(TrainerBase):
@@ -114,6 +115,46 @@ class Evaluator(EvaluatorBase):
         for i in range(N_samples):
             save_video(rgbs[i], basename + '{:04d}_rgb.mp4'.format(i), as_gif=as_gif, fps=fps)
             save_video(depths[i], basename + '{:04d}_depth.mp4'.format(i), as_gif=as_gif, fps=fps)
+
+    def make_3D_grid(self, N=256, voxel_origin=[0, 0, 0], cube_length=5.0):
+        # NOTE: the voxel_origin is actually the (bottom, left, down) corner, not the middle
+        voxel_origin = np.array(voxel_origin) - cube_length / 2
+        voxel_size = cube_length / (N - 1)
+
+        overall_index = torch.arange(0, N ** 3, 1, out=torch.LongTensor())
+        samples = torch.zeros(N ** 3, 3)
+
+        # transform first 3 columns
+        # to be the x, y, z index
+        samples[:, 2] = overall_index % N
+        samples[:, 1] = (overall_index.float() / N) % N
+        samples[:, 0] = ((overall_index.float() / N) / N) % N
+
+        # transform first 3 columns
+        # to be the x, y, z coordinate
+        samples[:, 0] = (samples[:, 0] * voxel_size) + voxel_origin[2]
+        samples[:, 1] = (samples[:, 1] * voxel_size) + voxel_origin[1]
+        samples[:, 2] = (samples[:, 2] * voxel_size) + voxel_origin[0]
+
+        num_samples = N ** 3
+
+        return samples.unsqueeze(0), voxel_origin, voxel_size
+
+    def make_mesh(self, path, z):
+        self.generator.eval()
+        self.batch_size = 1
+        N_samples = len(z)
+        device = self.generator.device
+        z = z.to(device).split(self.batch_size)
+        with torch.no_grad():
+            points = self.make_3D_grid(N=128, voxel_origin=[0, 0, 0], cube_length=2.0)[0][0]
+            # points = points.repeat(self.batch_size, 1, 1)
+            for z_i in tqdm(z, total=len(z), desc='Create samples...'):
+                bs = len(z_i)
+                sigma_i = self.generator.out_sigma(z_i, points=points)
+                with mrcfile.new_mmap(os.path.join(path), overwrite=True, shape=sigma_i.shape,
+                                      mrc_mode=2) as mrc:
+                    mrc.data[:] = sigma_i
 
     def disp_to_cdepth(self, disps):
         """Convert depth to color values"""

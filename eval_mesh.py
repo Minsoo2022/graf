@@ -44,8 +44,6 @@ if __name__ == '__main__':
     parser.add_argument('--shape_appearance', action='store_true', help='Create grid image showing shape/appearance variation.')
     parser.add_argument('--pretrained', action='store_true', help='Load pretrained model.')
     parser.add_argument('--reconstruction', action='store_true', help='Generate images and run COLMAP for 3D reconstruction.')
-    parser.add_argument('--make_mesh', action='store_true', help='Load pretrained model.')
-
 
     args, unknown = parser.parse_known_args()
     config = load_config(args.config, 'configs/default.yaml')
@@ -286,18 +284,3 @@ if __name__ == '__main__':
 
         # reset radius for generator
         generator_test.radius = radius_orig
-
-    if args.make_mesh:
-        N_samples = 1
-        render_radius = config['data']['radius']
-        if isinstance(render_radius, str):  # use maximum radius
-            render_radius = float(render_radius.split(',')[1])
-
-        z = zdist.sample((N_samples,))
-
-
-        # outpath = os.path.join(eval_dir, '{}/'.format(name))
-        # os.makedirs(outpath, exist_ok=True)
-        outpath = './test_celebA.mrc'
-        evaluator.make_mesh(outpath, z)
-        torch.cuda.empty_cache()
