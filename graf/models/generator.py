@@ -95,10 +95,10 @@ class Generator(object):
         # instead of the absolute value (relative to maximum camera radius)
 
         render_kwargs['features'] = z
-        sigmas = render_sigma(self.H, self.W, self.focal, chunk=self.chunk, points=points,
+        sigmas, colors = render_sigma(self.H, self.W, self.focal, chunk=self.chunk, points=points,
                                         **render_kwargs)
 
-        return sigmas
+        return sigmas, colors
 
     def decrease_nerf_noise(self, it):
         end_it = 5000

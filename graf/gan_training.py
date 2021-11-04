@@ -9,6 +9,8 @@ from submodules.GAN_stability.gan_training.metrics import FIDEvaluator, KIDEvalu
 
 from .utils import save_video, color_depth_map
 import mrcfile
+import open3d as o3d
+from skimage.measure import marching_cubes
 
 
 class Trainer(TrainerBase):
@@ -147,14 +149,45 @@ class Evaluator(EvaluatorBase):
         device = self.generator.device
         z = z.to(device).split(self.batch_size)
         with torch.no_grad():
-            points = self.make_3D_grid(N=128, voxel_origin=[0, 0, 0], cube_length=2.0)[0][0]
+            voxel_resolution = 128
+            cube_size = 2.0
+            points = self.make_3D_grid(N=voxel_resolution, voxel_origin=[0, 0, 0], cube_length=cube_size)[0][0]
             # points = points.repeat(self.batch_size, 1, 1)
             for z_i in tqdm(z, total=len(z), desc='Create samples...'):
                 bs = len(z_i)
-                sigma_i = self.generator.out_sigma(z_i, points=points)
+                sigma_i, _ = self.generator.out_sigma(z_i, points=points)
+                sigma_i = sigma_i.reshape(voxel_resolution, voxel_resolution, voxel_resolution)
                 with mrcfile.new_mmap(os.path.join(path), overwrite=True, shape=sigma_i.shape,
                                       mrc_mode=2) as mrc:
                     mrc.data[:] = sigma_i
+
+                marching_cubes_level = 54
+                verts, faces, normals, values = marching_cubes(
+                    np.array(sigma_i),
+                    level=marching_cubes_level,
+                    spacing=(1.0, 1.0, 1.0),
+                    # spacing = (opt.voxel_resolution, opt.voxel_resolution, opt.voxel_resolution),
+                    gradient_direction='descent',
+                    step_size=1,
+                    allow_degenerate=True,
+                    method='lewiner',
+                    mask=None)
+
+                verts_vec = o3d.utility.Vector3dVector(verts)
+                faces_vec = o3d.utility.Vector3iVector(faces)
+                verts_normals_vec = o3d.utility.Vector3dVector(normals)
+
+                mesh1 = o3d.geometry.TriangleMesh(verts_vec, faces_vec)
+                mesh1.vertex_normals = verts_normals_vec
+
+                samples = torch.from_numpy(
+                    (verts - voxel_resolution / 2) / (voxel_resolution / 2) * (cube_size / 2))
+                samples = samples.unsqueeze(0)
+                samples = samples.to(device)
+
+                sigma, color = self.generator.out_sigma(z_i, points=samples[0])
+                mesh1.vertex_colors = o3d.utility.Vector3dVector(color.detach().cpu().squeeze(0).numpy())
+                o3d.io.write_triangle_mesh(f'./albedo.ply', mesh1)
 
     def disp_to_cdepth(self, disps):
         """Convert depth to color values"""

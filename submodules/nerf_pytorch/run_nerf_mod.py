@@ -91,6 +91,7 @@ def batchify_points(points_flat, chunk=1024*32, **kwargs):
     all_ret = {}
     features = kwargs.get('features')
     sigmas = torch.zeros((features.shape[0], 1), device=features.device)
+    colors = torch.zeros((features.shape[0], 3), device=features.device)
 
     for i in range(0, points_flat.shape[0], chunk):
         if features is not None:
@@ -101,9 +102,10 @@ def batchify_points(points_flat, chunk=1024*32, **kwargs):
         #         all_ret[k] = []
         #     all_ret[k].append(ret[k])
         sigmas[i:i+chunk] = ret[:, -1:]
+        colors[i:i+chunk] = ret[:, :-1]
 
     # all_ret = {k : torch.cat(all_ret[k], 0) for k in all_ret}
-    return sigmas
+    return sigmas, colors
 
 
 def render_sigma(H, W, focal, chunk=1024*32, points=None, c2w=None, ndc=True,
@@ -115,10 +117,10 @@ def render_sigma(H, W, focal, chunk=1024*32, points=None, c2w=None, ndc=True,
     kwargs['features'] = kwargs['features'].unsqueeze(1).expand(-1, points.shape[0], -1).flatten(0, 1)
 
     # Render and reshape
-    sigmas = batchify_points(points, chunk, **kwargs)
-    sigmas = sigmas.reshape(128, 128, 128)
+    sigmas, colors = batchify_points(points, chunk, **kwargs)
+    # sigmas = sigmas.reshape(128, 128, 128)
 
-    return sigmas.cpu()
+    return sigmas.cpu(), colors
 
 def render(H, W, focal, chunk=1024*32, rays=None, c2w=None, ndc=True,
                   near=0., far=1.,
