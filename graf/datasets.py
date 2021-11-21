@@ -51,6 +51,9 @@ class CelebA(ImageDataset):
     def __init__(self, *args, **kwargs):
         super(CelebA, self).__init__(*args, **kwargs)
 
+class BFM(ImageDataset):
+    def __init__(self, *args, **kwargs):
+        super(BFM, self).__init__(*args, **kwargs)
 
 class CUB(ImageDataset):
     def __init__(self, *args, **kwargs):

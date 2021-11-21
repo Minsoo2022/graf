@@ -1,0 +1,21 @@
+expname: celebA_64
+data:
+  datadir: /home/nas1_temp/minsoolee/3Dmining/dataset/celeba_cropped_no_split$
+  type: celebA
+  imsize: 64
+  white_bkgd: False
+  radius: 9.5,10.5
+  near: 7.5
+  far: 12.5
+  fov: 10.
+  umin: 0
+  umax: 0.25
+  vmin: 0.32898992833716556 # 70 deg
+  vmax: 0.45642212862617093   # 85 deg
+  umin2: 0
+  umax2: 0.25
+  vmin2: 0.32898992833716556 # 70 deg
+  vmax2: 0.45642212862617093   # 85 deg
+  gauss: False
+model_file: '/home/nas3_userJ/hojuncho/Dump/graf/graf_celeba_64/model_01049999.pt'
+

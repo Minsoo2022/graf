@@ -47,7 +47,7 @@ def get_data(config):
     transforms = Compose([
         Resize(imsize),
         ToTensor(),
-        Lambda(lambda x: x * 2 - 1),
+        Normalize(0.5, 0.5)
     ])
 
     kwargs = {
@@ -57,6 +57,12 @@ def get_data(config):
 
     if dset_type == 'carla':
         dset = Carla(**kwargs)
+
+    elif dset_type == 'BFM':
+        transforms.transforms.insert(0, RandomHorizontalFlip())
+        transforms.transforms.insert(0, CenterCrop(170))
+
+        dset = BFM(**kwargs)
 
     elif dset_type == 'celebA':
         assert imsize <= 128, 'cropped GT data has lower resolution than imsize, consider using celebA_hq instead'

@@ -111,7 +111,7 @@ if __name__ == '__main__':
         config_pretrained = load_config('configs/pretrained_models.yaml', 'configs/pretrained_models.yaml')
         model_file = config_pretrained[config['data']['type']][config['data']['imsize']]
     else:
-        model_file = 'model_best.pt'
+        model_file = config['model_file']
 
     # Distributions
     ydist = get_ydist(1, device=device)         # Dummy to keep GAN training structure in tact
@@ -289,12 +289,7 @@ if __name__ == '__main__':
 
     if args.make_mesh:
         N_samples = 1
-        render_radius = config['data']['radius']
-        if isinstance(render_radius, str):  # use maximum radius
-            render_radius = float(render_radius.split(',')[1])
-
         z = zdist.sample((N_samples,))
-
 
         # outpath = os.path.join(eval_dir, '{}/'.format(name))
         # os.makedirs(outpath, exist_ok=True)

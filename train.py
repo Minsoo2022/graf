@@ -29,6 +29,7 @@ from GAN_stability.gan_training.config import (
 
 
 if __name__ == '__main__':
+    torch.multiprocessing.set_start_method('spawn')
     # Arguments
     parser = argparse.ArgumentParser(
         description='Train a GAN with different regularization strategies.'

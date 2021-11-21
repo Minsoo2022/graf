@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  dev:
+    build: 
+      context: .
+      args:
+        ENV: dev
+        USER_ID: ${USER_ID}
+        GROUP_ID: ${GROUP_ID}
+
+    volumes:
+      - .:/app
+      - /home/nas1_temp:/home/nas1_temp
+    
+    entrypoint: /bin/bash
+
+    runtime: nvidia
+    stdin_open: true
+    tty: true

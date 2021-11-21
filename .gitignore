@@ -1,3 +1,8 @@
 
 *.xml
 *.iml
+
+__pycache__
+/imgs
+/results
+/.vscode

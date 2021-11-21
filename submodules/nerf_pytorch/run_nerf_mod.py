@@ -12,7 +12,6 @@ from tqdm import tqdm
 from functools import partial
 
 import matplotlib.pyplot as plt
-import mrcfile
 
 from .run_nerf_helpers_mod import *
 
@@ -33,14 +32,11 @@ def batchify(fn, chunk):
 
 def run_network(inputs, viewdirs, fn, embed_fn, embeddirs_fn, features=None, netchunk=1024*64,
                 feat_dim_appearance=0):
-    # inputs_flat = torch.reshape(inputs, [-1, inputs.shape[-1]])
-    # inputs_flat = inputs.unsqueeze(1)
-    inputs_flat = inputs
+    inputs_flat = torch.reshape(inputs, [-1, inputs.shape[-1]])
     embedded = embed_fn(inputs_flat)
     if features is not None:
         # expand features to shape of flattened inputs
-        # features = features.unsqueeze(1).expand(-1, inputs.shape[1], -1).flatten(0, 1)
-        # features = features.unsqueeze(1)
+        features = features.unsqueeze(1).expand(-1, inputs.shape[1], -1).flatten(0, 1)
 
         # only split if viewdirs is not None
         if viewdirs is not None and feat_dim_appearance > 0:
@@ -53,11 +49,9 @@ def run_network(inputs, viewdirs, fn, embed_fn, embeddirs_fn, features=None, net
         embedded = torch.cat([embedded, features_shape], -1)
 
     if viewdirs is not None:
-        # input_dirs = viewdirs[:,None].expand(inputs.shape)
-        # input_dirs_flat = torch.reshape(input_dirs, [-1, input_dirs.shape[-1]])
-        # embedded_dirs = embeddirs_fn(input_dirs_flat)
-        embedded_dirs = embeddirs_fn(viewdirs)
-
+        input_dirs = viewdirs[:,None].expand(inputs.shape)
+        input_dirs_flat = torch.reshape(input_dirs, [-1, input_dirs.shape[-1]])
+        embedded_dirs = embeddirs_fn(input_dirs_flat)
         embedded = torch.cat([embedded, embedded_dirs], -1)
         if features_appearance is not None:
             embedded = torch.cat([embedded, features_appearance], dim=-1)
@@ -86,40 +80,27 @@ def batchify_rays(rays_flat, chunk=1024*32, **kwargs):
     all_ret = {k : torch.cat(all_ret[k], 0) for k in all_ret}
     return all_ret
 
-def batchify_points(points_flat, chunk=1024*32, **kwargs):
-
-    all_ret = {}
-    features = kwargs.get('features')
-    sigmas = torch.zeros((features.shape[0], 1), device=features.device)
-    colors = torch.zeros((features.shape[0], 3), device=features.device)
-
-    for i in range(0, points_flat.shape[0], chunk):
-        if features is not None:
-            kwargs['features'] = features[i:i+chunk]
-        ret = render_points_sigma(points_flat[i:i+chunk], **kwargs)
-        # for k in ret:
-        #     if k not in all_ret:
-        #         all_ret[k] = []
-        #     all_ret[k].append(ret[k])
-        sigmas[i:i+chunk] = ret[:, -1:]
-        colors[i:i+chunk] = ret[:, :-1]
-
-    # all_ret = {k : torch.cat(all_ret[k], 0) for k in all_ret}
-    return sigmas, colors
-
-
 def render_sigma(H, W, focal, chunk=1024*32, points=None, c2w=None, ndc=True,
                   near=0., far=1.,
                   use_viewdirs=False, c2w_staticcam=None,
                   **kwargs):
 
-
-    kwargs['features'] = kwargs['features'].unsqueeze(1).expand(-1, points.shape[0], -1).flatten(0, 1)
-
     # Render and reshape
-    sigmas, colors = batchify_points(points, chunk, **kwargs)
-    # sigmas = sigmas.reshape(128, 128, 128)
+    all_ret = {}
+    sigmas = torch.zeros((points.shape[0], 1), device=points.device)
+    colors = torch.zeros((points.shape[0], 3), device=points.device)
 
+    for i in range(0, points.shape[0], chunk):
+        ret = render_points_sigma(points[None, i:i+chunk], **kwargs)
+        # for k in ret:
+        #     if k not in all_ret:
+        #         all_ret[k] = []
+        #     all_ret[k].append(ret[k])
+        sigmas[i:i+chunk] = ret[0, :, -1:]
+        colors[i:i+chunk] = ret[0, :, :-1]
+
+    # all_ret = {k : torch.cat(all_ret[k], 0) for k in all_ret}
+    return sigmas, colors
     return sigmas.cpu(), colors
 
 def render(H, W, focal, chunk=1024*32, rays=None, c2w=None, ndc=True,
@@ -354,7 +335,7 @@ def render_rays(ray_batch,
         z_vals = lower + (upper - lower) * t_rand
 
     pts = rays_o[...,None,:] + rays_d[...,None,:] * z_vals[...,:,None] # [N_rays, N_samples, 3]
-    # pts.shape : [8192, 64, 3]
+
 
 #     raw = run_network(pts)
     raw = network_query_fn(pts, viewdirs, network_fn, features)
@@ -411,7 +392,8 @@ def render_points_sigma(points,
 
 
     pts = points
-    viewdirs = torch.zeros_like(pts, device=pts.device)
+    viewdirs = torch.tensor([0., 0., 1.], device=pts.device)[None, :].expand(pts.shape[0], -1)
+    #viewdirs = torch.zeros([pts.shape[0], 3], device=pts.device)
     raw = network_query_fn(pts, viewdirs, network_fn, features)
 
     return raw
